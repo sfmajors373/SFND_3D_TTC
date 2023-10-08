@@ -4,9 +4,19 @@
 #include <numeric>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
+#include <pcl/io/pcd_io.h>
+#include <pcl/common/common.h>
+#include <pcl/filters/extract_indices.h>
+#include <pcl/filters/voxel_grid.h>
+#include <pcl/filters/crop_box.h>
+#include <pcl/kdtree/kdtree.h>
+#include <pcl/segmentation/sac_segmentation.h>
+#include <pcl/segmentation/extract_clusters.h>
+#include <pcl/common/transforms.h>
 
 #include "camFusion.hpp"
 #include "dataStructures.h"
+#include "processPointCloud.h"
 
 using namespace std;
 
@@ -116,7 +126,7 @@ void show3DObjects(std::vector<BoundingBox> &boundingBoxes, cv::Size worldSize, 
 
     // plot distance markers
     float lineSpacing = 2.0; // gap between distance markers
-    int nMarkers = floor(worldSize.height / lineSpacing);
+    unsigned int nMarkers = floor(worldSize.height / lineSpacing);
     for (size_t i = 0; i < nMarkers; ++i)
     {
         int y = (-(i * lineSpacing) * imageSize.height / worldSize.height) + imageSize.height;
@@ -150,11 +160,51 @@ void computeTTCCamera(std::vector<cv::KeyPoint> &kptsPrev, std::vector<cv::KeyPo
 }
 
 
+/*
 void computeTTCLidar(std::vector<LidarPoint> &lidarPointsPrev,
                      std::vector<LidarPoint> &lidarPointsCurr, double frameRate, double &TTC)
 {
-    // ...
+    // cluster points
+    std::vector<std::vector<LidarPoint>> clusters = clustering(lidarPointsCurr, 0.3, 10, 1000);
+
+    // find closest point
+    typename pcl::PointCloud<pcl::PointXYZI> points = pcl::PointCloud<pcl::PointXYZI>();
+    
+    for (std::vector<LidarPoint> cluster : clusters)
+    {
+        for (LidarPoint point : cluster)
+        {
+            // if point in ego lane, lane width = 4 and in previous frame
+            if ((std::abs(point.x) <= 2.0) && ((std::find(lidarPointsPrev.begin(), lidarPointsPrev.end(), point) != lidarPointsPrev.end()))
+            {
+                pcl::PointXYZI newPoint = pcl::PointXYZI({(float) point.x, (float) point.y, (float) point.z, (float) point.r});
+                points.points.push_back(newPoint);
+            }
+        }
+    }
+
+    typename pcl::search::KdTree<pcl::PointXYZI> tree (new pcl::search::KdTree<pcl::PointXYZI>);
+    tree.setInputCloud(points);
+
+    pcl::PointXYZI origin = pcl::PointXYZI({0.0, 0.0, 0.0, 1.0});
+    int nearestIndex;
+    float nearestDistance;
+    tree.nearestKSearch(origin, 1, nearestIndex, nearestDistance);
+    pcl::PointXYZI nearestPoint = cloud.points[nearestIndex];
+
+    //convert the point back to a lidar point
+    LidarPoint nearestLidarPoint = LidarPoint({nearestPoint.x, nearestPoint.y, nearestPoint.z, nearestPoint.intensity});
+    // find its index in lidarPointsCurr
+    auto it = std::find(lidarPointsCurr.begin(), lidarPointsCurr.end(), nearestLidarPoint);
+    int index;
+    if (it != lidarPointsCurr.end())
+    {
+        index = std::distance(lidarPointsCurr.begin(), it);
+    }
+    // TTC = x * (1/frameRate)/(xPrev - xCurr)
+    TTC = lidarPointsCurr.at(index).x * ((1/frameRate) / (lidarPointsPrev.at(index).x - lidarPointsCurr.at(index).x));
 }
+*/
 
 
 void matchBoundingBoxes(std::vector<cv::DMatch> &matches,
@@ -215,7 +265,6 @@ void matchBoundingBoxes(std::vector<cv::DMatch> &matches,
         }
     }
 
-    /*
     // iterate over current bounding boxes
     // see which have highest shared count
     // push into list
@@ -240,9 +289,13 @@ void matchBoundingBoxes(std::vector<cv::DMatch> &matches,
 
         if (currentHighestCount > 0)
         {
-            bbBestMatches.first = currentBox;
-            bbBestMatches.second = currentHighestPair.second;
+            // bbBestMatches.first = currentBox;
+            // bbBestMatches.second = currentHighestPair.second;
+            // std::cout << "box id type " << typeid(currentBox.boxID).name() << std::endl;
+            // std::cout << "second type " << typeid(currentHighestPair.second).name() << std::endl;
+            int thing1 = currentBox.boxID;
+            int thing2 = currentHighestPair.second;
+            // bbBestMatches.insert(thing1, thing2);
         }
     }
-    */
 }
