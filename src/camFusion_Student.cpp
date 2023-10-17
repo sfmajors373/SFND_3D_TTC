@@ -160,7 +160,7 @@ void computeTTCCamera(std::vector<cv::KeyPoint> &kptsPrev, std::vector<cv::KeyPo
 }
 
 
-/*
+
 void computeTTCLidar(std::vector<LidarPoint> &lidarPointsPrev,
                      std::vector<LidarPoint> &lidarPointsCurr, double frameRate, double &TTC)
 {
@@ -175,7 +175,7 @@ void computeTTCLidar(std::vector<LidarPoint> &lidarPointsPrev,
         for (LidarPoint point : cluster)
         {
             // if point in ego lane, lane width = 4 and in previous frame
-            if ((std::abs(point.x) <= 2.0) && ((std::find(lidarPointsPrev.begin(), lidarPointsPrev.end(), point) != lidarPointsPrev.end()))
+            if ((std::abs(point.x) <= 2.0) && ((std::find(lidarPointsPrev.begin(), lidarPointsPrev.end(), point) != lidarPointsPrev.end())))
             {
                 pcl::PointXYZI newPoint = pcl::PointXYZI({(float) point.x, (float) point.y, (float) point.z, (float) point.r});
                 points.points.push_back(newPoint);
@@ -204,7 +204,6 @@ void computeTTCLidar(std::vector<LidarPoint> &lidarPointsPrev,
     // TTC = x * (1/frameRate)/(xPrev - xCurr)
     TTC = lidarPointsCurr.at(index).x * ((1/frameRate) / (lidarPointsPrev.at(index).x - lidarPointsCurr.at(index).x));
 }
-*/
 
 
 void matchBoundingBoxes(std::vector<cv::DMatch> &matches,
