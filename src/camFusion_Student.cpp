@@ -13,6 +13,7 @@
 #include <pcl/segmentation/sac_segmentation.h>
 #include <pcl/segmentation/extract_clusters.h>
 #include <pcl/common/transforms.h>
+#include <pcl/search/kdtree.h>
 
 #include "camFusion.hpp"
 #include "dataStructures.h"
@@ -144,7 +145,7 @@ void show3DObjects(std::vector<BoundingBox> &boundingBoxes, cv::Size worldSize, 
     }
 }
 
-
+/*
 // associate a given bounding box with the keypoints it contains
 void clusterKptMatchesWithROI(BoundingBox &boundingBox, std::vector<cv::KeyPoint> &kptsPrev, std::vector<cv::KeyPoint> &kptsCurr, std::vector<cv::DMatch> &kptMatches)
 {
@@ -158,7 +159,7 @@ void computeTTCCamera(std::vector<cv::KeyPoint> &kptsPrev, std::vector<cv::KeyPo
 {
     // ...
 }
-
+*/
 
 
 void computeTTCLidar(std::vector<LidarPoint> &lidarPointsPrev,
@@ -168,29 +169,29 @@ void computeTTCLidar(std::vector<LidarPoint> &lidarPointsPrev,
     std::vector<std::vector<LidarPoint>> clusters = clustering(lidarPointsCurr, 0.3, 10, 1000);
 
     // find closest point
-    typename pcl::PointCloud<pcl::PointXYZI> points = pcl::PointCloud<pcl::PointXYZI>();
+    typename pcl::PointCloud<pcl::PointXYZI>::Ptr points = pcl::PointCloud<pcl::PointXYZI>::Ptr();
     
     for (std::vector<LidarPoint> cluster : clusters)
     {
         for (LidarPoint point : cluster)
         {
             // if point in ego lane, lane width = 4 and in previous frame
-            if ((std::abs(point.x) <= 2.0) && ((std::find(lidarPointsPrev.begin(), lidarPointsPrev.end(), point) != lidarPointsPrev.end())))
+            if ((std::abs(point.x) <= 2.0) && ((std::find(lidarPointsPrev.begin(), lidarPointsPrev.end(), point) != std::end(lidarPointsPrev))))
             {
                 pcl::PointXYZI newPoint = pcl::PointXYZI({(float) point.x, (float) point.y, (float) point.z, (float) point.r});
-                points.points.push_back(newPoint);
+                points->points.push_back(newPoint);
             }
         }
     }
 
-    typename pcl::search::KdTree<pcl::PointXYZI> tree (new pcl::search::KdTree<pcl::PointXYZI>);
-    tree.setInputCloud(points);
+    typename pcl::search::KdTree<pcl::PointXYZI>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZI>);
+    tree->setInputCloud(points);
 
     pcl::PointXYZI origin = pcl::PointXYZI({0.0, 0.0, 0.0, 1.0});
-    int nearestIndex;
-    float nearestDistance;
-    tree.nearestKSearch(origin, 1, nearestIndex, nearestDistance);
-    pcl::PointXYZI nearestPoint = cloud.points[nearestIndex];
+    vector<int> nearestIndices;
+    vector<float> nearestDistances;
+    tree->nearestKSearch(origin, 1, nearestIndices, nearestDistances);
+    pcl::PointXYZI nearestPoint = points->points[nearestIndices.at(0)];
 
     //convert the point back to a lidar point
     LidarPoint nearestLidarPoint = LidarPoint({nearestPoint.x, nearestPoint.y, nearestPoint.z, nearestPoint.intensity});

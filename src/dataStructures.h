@@ -8,6 +8,16 @@
 
 struct LidarPoint { // single lidar point in space
     double x,y,z,r; // x,y,z in [m], r is point reflectivity
+
+    bool operator==(const LidarPoint& b) const
+    {
+        // this is not a delta comparison; I literally want to know that this is the point in the list
+        // not spatially the same point
+        return ((this->x == b.x) &&
+            (this->y == b.y) &&
+            (this->z == b.z) &&
+            (this->r == b.r));
+    }
 };
 
 struct BoundingBox { // bounding box around a classified object (contains both 2D and 3D data)
