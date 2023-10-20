@@ -145,14 +145,51 @@ void show3DObjects(std::vector<BoundingBox> &boundingBoxes, cv::Size worldSize, 
     }
 }
 
-/*
+
 // associate a given bounding box with the keypoints it contains
-void clusterKptMatchesWithROI(BoundingBox &boundingBox, std::vector<cv::KeyPoint> &kptsPrev, std::vector<cv::KeyPoint> &kptsCurr, std::vector<cv::DMatch> &kptMatches)
+void clusterKptMatchesWithROI(BoundingBox &boundingBox, std::vector<cv::KeyPoint> &kptsPrev,
+                            std::vector<cv::KeyPoint> &kptsCurr, std::vector<cv::DMatch> &kptMatches)
 {
-    // ...
+    std::vector<cv::DMatch> matches;
+
+    // is it in the bounding box
+    vector<cv::DMatch> inBB;
+    vector<double> distances;
+
+    cv::KeyPoint curr;
+    cv::KeyPoint prev;
+    for (auto i = kptMatches.begin(); i != kptMatches.end(); ++i)
+    {
+        curr = kptsCurr[((*i)).trainIdx];
+        prev = kptsPrev[((*i)).queryIdx];
+
+        if (boundingBox.roi.contains(curr.pt))
+        {
+            inBB.push_back((*i));
+            // compute distance
+            distances.push_back(cv::norm(curr.pt - prev.pt));
+        }
+    }
+    // compute mean
+    double distTotal = std::accumulate(distances.begin(), distances.end(), 0.0);
+    double mean = distTotal / distances.size();
+
+    // filter out the ones with distance too much larger than mean
+    double tolerance = 1.5 * mean;
+    auto itrBB = inBB.begin();
+    for (auto i = distances.begin(); i != distances.end(); ++i, ++itrBB)
+    {
+        if ((*i) < tolerance)
+        {
+            curr = kptsCurr[((*itrBB)).trainIdx];
+            boundingBox.kptMatches.push_back((*itrBB));
+            boundingBox.keypoints.push_back(curr);
+        }
+    }
+
 }
 
-
+/*
 // Compute time-to-collision (TTC) based on keypoint correspondences in successive images
 void computeTTCCamera(std::vector<cv::KeyPoint> &kptsPrev, std::vector<cv::KeyPoint> &kptsCurr, 
                       std::vector<cv::DMatch> kptMatches, double frameRate, double &TTC, cv::Mat *visImg)
