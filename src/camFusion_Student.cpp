@@ -23,7 +23,8 @@ using namespace std;
 
 
 // Create groups of Lidar points whose projection into the camera falls into the same bounding box
-void clusterLidarWithROI(std::vector<BoundingBox> &boundingBoxes, std::vector<LidarPoint> &lidarPoints, float shrinkFactor, cv::Mat &P_rect_xx, cv::Mat &R_rect_xx, cv::Mat &RT)
+void clusterLidarWithROI(std::vector<BoundingBox> &boundingBoxes, std::vector<LidarPoint> &lidarPoints,
+                        float shrinkFactor, cv::Mat &P_rect_xx, cv::Mat &R_rect_xx, cv::Mat &RT)
 {
     // loop over all Lidar points and associate them to a 2D bounding box
     cv::Mat X(4, 1, cv::DataType<double>::type);
@@ -45,6 +46,7 @@ void clusterLidarWithROI(std::vector<BoundingBox> &boundingBoxes, std::vector<Li
         pt.y = Y.at<double>(1, 0) / Y.at<double>(2, 0); 
 
         vector<vector<BoundingBox>::iterator> enclosingBoxes; // pointers to all bounding boxes which enclose the current Lidar point
+        // cout << "Number of Boxes: " << boundingBoxes.size() << endl;
         for (vector<BoundingBox>::iterator it2 = boundingBoxes.begin(); it2 != boundingBoxes.end(); ++it2)
         {
             // shrink current bounding box slightly to avoid having too many outlier points around the edges
@@ -79,11 +81,13 @@ void clusterLidarWithROI(std::vector<BoundingBox> &boundingBoxes, std::vector<Li
 */
 void show3DObjects(std::vector<BoundingBox> &boundingBoxes, cv::Size worldSize, cv::Size imageSize, bool bWait)
 {
+    cout << "3D objects boxes: " << boundingBoxes.size() << endl;
     // create topview image
     cv::Mat topviewImg(imageSize, CV_8UC3, cv::Scalar(255, 255, 255));
 
     for(auto it1=boundingBoxes.begin(); it1!=boundingBoxes.end(); ++it1)
     {
+        // cout << "Looop 1" << endl;
         // create randomized color for current 3D object
         cv::RNG rng(it1->boxID);
         cv::Scalar currColor = cv::Scalar(rng.uniform(0,150), rng.uniform(0, 150), rng.uniform(0, 150));
@@ -93,6 +97,7 @@ void show3DObjects(std::vector<BoundingBox> &boundingBoxes, cv::Size worldSize, 
         float xwmin=1e8, ywmin=1e8, ywmax=-1e8;
         for (auto it2 = it1->lidarPoints.begin(); it2 != it1->lidarPoints.end(); ++it2)
         {
+            // cout << "Loop 2" << endl;
             // world coordinates
             float xw = (*it2).x; // world position in m with x facing forward from sensor
             float yw = (*it2).y; // world position in m with y facing left from sensor
@@ -113,6 +118,7 @@ void show3DObjects(std::vector<BoundingBox> &boundingBoxes, cv::Size worldSize, 
             // draw individual point
             cv::circle(topviewImg, cv::Point(x, y), 4, currColor, -1);
         }
+        cout << "End loops" << endl;
 
         // draw enclosing rectangle
         cv::rectangle(topviewImg, cv::Point(left, top), cv::Point(right, bottom),cv::Scalar(0,0,0), 2);
@@ -124,6 +130,7 @@ void show3DObjects(std::vector<BoundingBox> &boundingBoxes, cv::Size worldSize, 
         sprintf(str2, "xmin=%2.2f m, yw=%2.2f m", xwmin, ywmax-ywmin);
         putText(topviewImg, str2, cv::Point2f(left-250, bottom+125), cv::FONT_ITALIC, 2, currColor);  
     }
+    cout << "End outer loop" << endl;
 
     // plot distance markers
     float lineSpacing = 2.0; // gap between distance markers
@@ -229,11 +236,12 @@ void computeTTCCamera(std::vector<cv::KeyPoint> &kptsPrev, std::vector<cv::KeyPo
 }
 
 
-void computeTTCLidar(std::vector<LidarPoint> &lidarPointsPrev,
+void computeTTCLidarCluster(std::vector<LidarPoint> &lidarPointsPrev,
                      std::vector<LidarPoint> &lidarPointsCurr, double frameRate, double &TTC)
 {
     // cluster points
     std::vector<std::vector<LidarPoint>> clusters = clustering(lidarPointsCurr, 0.3, 10, 1000);
+    cout << "Clustered" << endl;
 
     // find closest point
     typename pcl::PointCloud<pcl::PointXYZI>::Ptr points = pcl::PointCloud<pcl::PointXYZI>::Ptr();
@@ -253,6 +261,7 @@ void computeTTCLidar(std::vector<LidarPoint> &lidarPointsPrev,
 
     typename pcl::search::KdTree<pcl::PointXYZI>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZI>);
     tree->setInputCloud(points);
+    cout << "Made a tree" << endl;
 
     pcl::PointXYZI origin = pcl::PointXYZI({0.0, 0.0, 0.0, 1.0});
     vector<int> nearestIndices;
@@ -274,11 +283,57 @@ void computeTTCLidar(std::vector<LidarPoint> &lidarPointsPrev,
 }
 
 
+void computeTTCLidar(std::vector<LidarPoint> &lidarPointsPrev,
+                     std::vector<LidarPoint> &lidarPointsCurr, double frameRate, double &TTC)
+{
+    double dT = 1 / frameRate;
+    double laneWidth = 4.0;
+
+    std::vector<double> inLaneCurr;
+    std::vector<double> inLanePrev;
+
+    // if in lane, keep it
+    for (LidarPoint point : lidarPointsCurr)
+    {
+        if (std::abs(point.y/2) <= 2)
+        {
+            inLaneCurr.push_back(point.x);
+        }
+    }
+    std::cout << "Tested inLane Curr" << std::endl;
+    for (LidarPoint point : lidarPointsPrev)
+    {
+        if (std::abs(point.y/2) <= 2)
+        {
+            inLanePrev.push_back(point.x);
+        }
+    }
+    std::cout << "Tested inLanePrev" << std::endl;
+
+    // sort by closest y (closest to ego car)
+    sort(inLaneCurr.begin(), inLaneCurr.end());
+    sort(inLanePrev.begin(), inLanePrev.end());
+
+    std::cout << "Sorted" << std::endl;
+
+    // select median-ish index
+    int medianIndex = floor(inLanePrev.size()/2.0);
+
+    std::cout << "Incoming prev size: " << lidarPointsPrev.size() << std::endl;
+    std::cout << "In Lane Size: " << inLanePrev.size() << std::endl;
+    std::cout << "Median: " << medianIndex << std::endl;
+
+    double d1 = inLaneCurr.at(medianIndex);
+    double d0 = inLanePrev.at(medianIndex);
+
+    TTC = d1 * dT / (d0-d1);
+
+}
 void matchBoundingBoxes(std::vector<cv::DMatch> &matches,
     std::map<int, int> &bbBestMatches, DataFrame &prevFrame,
     DataFrame &currFrame)
 {
-    std::map<std::pair<int, int>, int> multimap;
+    std::multimap<int, int> multimap;
     
     std::vector<cv::KeyPoint> currentKeypoints = currFrame.keypoints;
     std::vector<cv::KeyPoint> prevKeypoints = prevFrame.keypoints;
@@ -295,74 +350,41 @@ void matchBoundingBoxes(std::vector<cv::DMatch> &matches,
         cv::Point2f currentPoint = currentKeypoints.at(currentId).pt;
         cv::Point2f prevPoint = prevKeypoints.at(prevId).pt;
 
+        int prevBoxID = -1;
+        int currBoxID = -1;
+
         // find out by which bounding box each kpt is enclosed in prev
         // and current frame
-        for (BoundingBox currentBox : currentBBoxList)
+        for (BoundingBox prevBox : prevBBoxList)
         {
-            for (BoundingBox prevBox : prevBBoxList)
+            if (prevBox.roi.contains(prevPoint))
             {
-                int currBBoxId = currentBox.boxID;
-                int prevBBoxId = prevBox.boxID;
-
-                std::pair<int, int> boxPair = {currBBoxId, prevBBoxId};
-
-                // can't figure out how to use the std::find because of const, not const???
-                // if ((std::find(currentBox.keypoints.begin(), currentBox.keypoints.end(), currentPoint) != std::end(currentBox.keypoints))
-                if (currentBox.roi.contains(currentPoint))
-                {
-                    // if (std::find(prevBox.keypoints.begin(), prevBox.keypoints.end(), prevPoint))
-                    if (prevBox.roi.contains(prevPoint))
-                    {
-                        // I referenced this StackOverflow post about finding if
-                        // pair existed in the map
-                        // https://stackoverflow.com/questions/1939953/how-to-find-if-a-given-key-exists-in-a-c-stdmap
-                        auto it = multimap.find(boxPair);
-                        if (it != multimap.end())
-                        {
-                            // pair exists, increment it
-                            it->second += 1;
-                        }
-                    }
-                    else
-                    {
-                        multimap[boxPair] = 1;
-                    }
-                }
+                prevBoxID = prevBox.boxID;
+            }   
+        }
+        for (BoundingBox currBox : currentBBoxList)
+        {
+            if (currBox.roi.contains(currentPoint))
+            {
+                currBoxID = currBox.boxID;
             }
+        }
+        if (prevBoxID != -1 && currBoxID != -1)
+        {
+            multimap.insert(std::make_pair(currBoxID, prevBoxID));
         }
     }
 
-    // iterate over current bounding boxes
-    // see which have highest shared count
-    // push into list
-    for (BoundingBox currentBox : currentBBoxList)
+    for (BoundingBox currBox : currentBBoxList)
     {
-        int currentHighestCount = 0;
-        std::pair<int, int> currentHighestPair;
-        for ( auto key : multimap)
+        auto matched_idx = multimap.equal_range(currBox.boxID);
+        std::vector<int> cnt(prevBBoxList.size() + 1, 0);
+
+        for (auto itr = matched_idx.first; itr != matched_idx.second; itr++)
         {
-            if ((key.first.first == currentBox.boxID) &&
-            (key.second > currentHighestCount))
-            {
-                currentHighestPair = key.first;
-                currentHighestCount = key.second;
-            }
-            else
-            {
-                continue;
-            }
-            
+            cnt[(*itr).second] += 1;
         }
 
-        if (currentHighestCount > 0)
-        {
-            // bbBestMatches.first = currentBox;
-            // bbBestMatches.second = currentHighestPair.second;
-            // std::cout << "box id type " << typeid(currentBox.boxID).name() << std::endl;
-            // std::cout << "second type " << typeid(currentHighestPair.second).name() << std::endl;
-            int thing1 = currentBox.boxID;
-            int thing2 = currentHighestPair.second;
-            // bbBestMatches.insert(thing1, thing2);
-        }
+        bbBestMatches.insert(std::make_pair(std::distance(cnt.begin(), std::max_element(cnt.begin(), cnt.end())), currBox.boxID));
     }
 }

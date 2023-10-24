@@ -4,6 +4,7 @@
 
 std::vector<std::vector<LidarPoint>> clustering(std::vector<LidarPoint> cloud, float clusterTolerance, int minSize, int maxSize)
 {
+    std::cout << "Clustering - am I even trying"<< std::endl;
     // turn LidarPoints into pcl::PointXYZI and add to 
     typename pcl::PointCloud<pcl::PointXYZI>::Ptr points = pcl::PointCloud<pcl::PointXYZI>::Ptr();
     
@@ -12,11 +13,13 @@ std::vector<std::vector<LidarPoint>> clustering(std::vector<LidarPoint> cloud, f
         pcl::PointXYZI newPoint = pcl::PointXYZI({(float) point.x, (float) point.y, (float) point.z, (float) point.r});
         points->points.push_back(newPoint);
     }
+    std::cout << "Clustering checkpoint 1" << std::endl;
 
     std::vector<typename pcl::PointCloud<pcl::PointXYZI>> clusters;
 
     typename pcl::search::KdTree<pcl::PointXYZI>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZI>);
     tree->setInputCloud(points);
+    std::cout << "Clustering Checkpoint tree" << std::endl;
 
     std::vector<pcl::PointIndices> clusterIndices;
     pcl::EuclideanClusterExtraction<pcl::PointXYZI> ec;
@@ -26,6 +29,8 @@ std::vector<std::vector<LidarPoint>> clustering(std::vector<LidarPoint> cloud, f
     ec.setSearchMethod(tree);
     ec.setInputCloud(points);
     ec.extract(clusterIndices);
+
+    std::cout << "Clustering checkpoint extract" << std::endl;
 
     for(pcl::PointIndices getIndices: clusterIndices)
     {
@@ -41,6 +46,8 @@ std::vector<std::vector<LidarPoint>> clustering(std::vector<LidarPoint> cloud, f
         clusters.push_back(cloudCluster);
     }
 
+    std::cout << "Clustering checkpoint 2" << std::endl;
+
     // change clusters and points back into vectors of LidarPoints
     std::vector<std::vector<LidarPoint>> lidarClusters;
     for (typename pcl::PointCloud<pcl::PointXYZI> cluster : clusters)
@@ -53,6 +60,8 @@ std::vector<std::vector<LidarPoint>> clustering(std::vector<LidarPoint> cloud, f
         }
         lidarClusters.push_back(lidarCluster);
     }
+
+    std::cout << "Clustering checkpoint final" << std::endl;
 
     return lidarClusters;
 }
