@@ -62,6 +62,12 @@ Run several detector / descriptor combinations and look at the differences in TT
 ![Sift-Brisk](./src/graphs/Sift-Brisk.png)
 ![Sift-Sift](./src/graphs/Sift-Sift.png)
 
+The best 3 detector/descriptor combinations based on these graphs seem to be
+
+Akaze/Akaze
+Sift/Sift
+Sift/Brief
+
 ## Dependencies for Running Locally
 * cmake >= 2.8
   * All OSes: [click here for installation instructions](https://cmake.org/install/)
