@@ -118,7 +118,7 @@ void show3DObjects(std::vector<BoundingBox> &boundingBoxes, cv::Size worldSize, 
             // draw individual point
             cv::circle(topviewImg, cv::Point(x, y), 4, currColor, -1);
         }
-        cout << "End loops" << endl;
+        // cout << "End loops" << endl;
 
         // draw enclosing rectangle
         cv::rectangle(topviewImg, cv::Point(left, top), cv::Point(right, bottom),cv::Scalar(0,0,0), 2);
@@ -130,7 +130,7 @@ void show3DObjects(std::vector<BoundingBox> &boundingBoxes, cv::Size worldSize, 
         sprintf(str2, "xmin=%2.2f m, yw=%2.2f m", xwmin, ywmax-ywmin);
         putText(topviewImg, str2, cv::Point2f(left-250, bottom+125), cv::FONT_ITALIC, 2, currColor);  
     }
-    cout << "End outer loop" << endl;
+    //cout << "End outer loop" << endl;
 
     // plot distance markers
     float lineSpacing = 2.0; // gap between distance markers
@@ -241,7 +241,7 @@ void computeTTCLidarCluster(std::vector<LidarPoint> &lidarPointsPrev,
 {
     // cluster points
     std::vector<std::vector<LidarPoint>> clusters = clustering(lidarPointsCurr, 0.3, 10, 1000);
-    cout << "Clustered" << endl;
+    // cout << "Clustered" << endl;
 
     // find closest point
     typename pcl::PointCloud<pcl::PointXYZI>::Ptr points = pcl::PointCloud<pcl::PointXYZI>::Ptr();
@@ -261,7 +261,7 @@ void computeTTCLidarCluster(std::vector<LidarPoint> &lidarPointsPrev,
 
     typename pcl::search::KdTree<pcl::PointXYZI>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZI>);
     tree->setInputCloud(points);
-    cout << "Made a tree" << endl;
+    // cout << "Made a tree" << endl;
 
     pcl::PointXYZI origin = pcl::PointXYZI({0.0, 0.0, 0.0, 1.0});
     vector<int> nearestIndices;
@@ -300,7 +300,7 @@ void computeTTCLidar(std::vector<LidarPoint> &lidarPointsPrev,
             inLaneCurr.push_back(point.x);
         }
     }
-    std::cout << "Tested inLane Curr" << std::endl;
+    // std::cout << "Tested inLane Curr" << std::endl;
     for (LidarPoint point : lidarPointsPrev)
     {
         if (std::abs(point.y/2) <= 2)
@@ -308,20 +308,20 @@ void computeTTCLidar(std::vector<LidarPoint> &lidarPointsPrev,
             inLanePrev.push_back(point.x);
         }
     }
-    std::cout << "Tested inLanePrev" << std::endl;
+    // std::cout << "Tested inLanePrev" << std::endl;
 
     // sort by closest y (closest to ego car)
     sort(inLaneCurr.begin(), inLaneCurr.end());
     sort(inLanePrev.begin(), inLanePrev.end());
 
-    std::cout << "Sorted" << std::endl;
+    // std::cout << "Sorted" << std::endl;
 
     // select median-ish index
     int medianIndex = floor(inLanePrev.size()/2.0);
 
-    std::cout << "Incoming prev size: " << lidarPointsPrev.size() << std::endl;
-    std::cout << "In Lane Size: " << inLanePrev.size() << std::endl;
-    std::cout << "Median: " << medianIndex << std::endl;
+    //std::cout << "Incoming prev size: " << lidarPointsPrev.size() << std::endl;
+    // std::cout << "In Lane Size: " << inLanePrev.size() << std::endl;
+    // std::cout << "Median: " << medianIndex << std::endl;
 
     double d1 = inLaneCurr.at(medianIndex);
     double d0 = inLanePrev.at(medianIndex);
